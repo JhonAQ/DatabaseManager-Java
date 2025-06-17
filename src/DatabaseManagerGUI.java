@@ -5,6 +5,8 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 /**
  * Interfaz gráfica para gestionar tablas referenciales
@@ -12,6 +14,10 @@ import java.awt.event.ActionListener;
 public class DatabaseManagerGUI extends JFrame {
     
     private String nombreTabla;
+    private String campoId;
+    private String campoDescripcion;
+    private String campoEstado;
+    
     private JTextField txtCodigo;
     private JTextField txtDescripcion;
     private JComboBox<String> cmbEstado;
@@ -22,30 +28,44 @@ public class DatabaseManagerGUI extends JFrame {
     private JButton btnAdicionar, btnModificar, btnEliminar, btnCancelar;
     private JButton btnInactivar, btnReactivar, btnActualizar, btnSalir;
     
-    public DatabaseManagerGUI(String nombreTabla) {
+    // Flag de actualización
+    private int CarFlaAct = 0; // 0 = no actualizar, 1 = actualizar
+    private String operacionActual = ""; // Para saber qué operación se está realizando
+    
+    // Base de datos
+    private ConexionDB db;
+    
+    public DatabaseManagerGUI(String nombreTabla, String campoId, String campoDescripcion, String campoEstado) {
         this.nombreTabla = nombreTabla;
+        this.campoId = campoId;
+        this.campoDescripcion = campoDescripcion;
+        this.campoEstado = campoEstado;
+        this.db = ConexionDB.getInstance();
+        
         initComponents();
         setupLayout();
         setupEventListeners();
+        cargarDatosTabla();
+        configurarEstadoInicial();
     }
     
     private void initComponents() {
         setTitle("Gestor de " + nombreTabla);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(800, 600);
+        setSize(900, 700);
         setLocationRelativeTo(null);
         
         // Campos del formulario
         txtCodigo = new JTextField(10);
         txtDescripcion = new JTextField(30);
-        cmbEstado = new JComboBox<>(new String[]{"Activo", "Inactivo"});
+        cmbEstado = new JComboBox<>(new String[]{"A", "I", "*"});
         
         // Modelo de la tabla
         String[] columnas = {"Código", "Descripción", "Estado de Registro"};
         modeloTabla = new DefaultTableModel(columnas, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // No permitir edición directa en la tabla
+                return false;
             }
         };
         tabla = new JTable(modeloTabla);
@@ -65,7 +85,6 @@ public class DatabaseManagerGUI extends JFrame {
     private void setupLayout() {
         setLayout(new BorderLayout());
         
-        // Panel principal con las 3 secciones
         JPanel panelPrincipal = new JPanel(new BorderLayout());
         
         // PRIMERA SECCIÓN: Registro
@@ -97,7 +116,7 @@ public class DatabaseManagerGUI extends JFrame {
         JPanel panelTabla = new JPanel(new BorderLayout());
         panelTabla.setBorder(BorderFactory.createTitledBorder("Tabla " + nombreTabla));
         JScrollPane scrollPane = new JScrollPane(tabla);
-        scrollPane.setPreferredSize(new Dimension(750, 200));
+        scrollPane.setPreferredSize(new Dimension(850, 250));
         panelTabla.add(scrollPane, BorderLayout.CENTER);
         
         // TERCERA SECCIÓN: Botones
@@ -112,7 +131,6 @@ public class DatabaseManagerGUI extends JFrame {
         panelBotones.add(btnActualizar);
         panelBotones.add(btnSalir);
         
-        // Agregar las secciones al panel principal
         panelPrincipal.add(panelRegistro, BorderLayout.NORTH);
         panelPrincipal.add(panelTabla, BorderLayout.CENTER);
         panelPrincipal.add(panelBotones, BorderLayout.SOUTH);
@@ -121,14 +139,12 @@ public class DatabaseManagerGUI extends JFrame {
     }
     
     private void setupEventListeners() {
-        // Evento para seleccionar fila de la tabla
         tabla.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 cargarDatosSeleccionados();
             }
         });
         
-        // Eventos de botones (por ahora solo mensajes)
         btnAdicionar.addActionListener(e -> accionAdicionar());
         btnModificar.addActionListener(e -> accionModificar());
         btnEliminar.addActionListener(e -> accionEliminar());
@@ -141,7 +157,7 @@ public class DatabaseManagerGUI extends JFrame {
     
     private void cargarDatosSeleccionados() {
         int filaSeleccionada = tabla.getSelectedRow();
-        if (filaSeleccionada >= 0) {
+        if (filaSeleccionada >= 0 && CarFlaAct == 0) {
             txtCodigo.setText(tabla.getValueAt(filaSeleccionada, 0).toString());
             txtDescripcion.setText(tabla.getValueAt(filaSeleccionada, 1).toString());
             cmbEstado.setSelectedItem(tabla.getValueAt(filaSeleccionada, 2).toString());
@@ -155,36 +171,186 @@ public class DatabaseManagerGUI extends JFrame {
         tabla.clearSelection();
     }
     
-    // Métodos de acciones (por implementar la lógica específica)
+    private void configurarEstadoInicial() {
+        txtCodigo.setEditable(false);
+        txtDescripcion.setEditable(false);
+        cmbEstado.setEnabled(false);
+        btnActualizar.setEnabled(false);
+        CarFlaAct = 0;
+        operacionActual = "";
+    }
+    
+    private void configurarEstadoOperacion(String operacion) {
+        operacionActual = operacion;
+        CarFlaAct = 1;
+        btnActualizar.setEnabled(true);
+        
+        switch (operacion) {
+            case "ADICIONAR":
+                txtCodigo.setEditable(true);
+                txtDescripcion.setEditable(true);
+                cmbEstado.setEnabled(false);
+                cmbEstado.setSelectedItem("A");
+                break;
+            case "MODIFICAR":
+                txtCodigo.setEditable(false);
+                txtDescripcion.setEditable(true);
+                cmbEstado.setEnabled(false);
+                break;
+            case "ELIMINAR":
+            case "INACTIVAR":
+            case "REACTIVAR":
+                txtCodigo.setEditable(false);
+                txtDescripcion.setEditable(false);
+                cmbEstado.setEnabled(false);
+                break;
+        }
+    }
+    
     private void accionAdicionar() {
-        JOptionPane.showMessageDialog(this, "Función Adicionar - Por implementar");
+        limpiarCampos();
+        configurarEstadoOperacion("ADICIONAR");
+        txtCodigo.requestFocus();
     }
     
     private void accionModificar() {
-        JOptionPane.showMessageDialog(this, "Función Modificar - Por implementar");
+        int filaSeleccionada = tabla.getSelectedRow();
+        if (filaSeleccionada < 0) {
+            JOptionPane.showMessageDialog(this, "Debe seleccionar un registro para modificar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        configurarEstadoOperacion("MODIFICAR");
+        txtDescripcion.requestFocus();
     }
     
     private void accionEliminar() {
-        JOptionPane.showMessageDialog(this, "Función Eliminar - Por implementar");
+        int filaSeleccionada = tabla.getSelectedRow();
+        if (filaSeleccionada < 0) {
+            JOptionPane.showMessageDialog(this, "Debe seleccionar un registro para eliminar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        configurarEstadoOperacion("ELIMINAR");
+        cmbEstado.setSelectedItem("*");
+    }
+    
+    private void accionInactivar() {
+        int filaSeleccionada = tabla.getSelectedRow();
+        if (filaSeleccionada < 0) {
+            JOptionPane.showMessageDialog(this, "Debe seleccionar un registro para inactivar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        configurarEstadoOperacion("INACTIVAR");
+        cmbEstado.setSelectedItem("I");
+    }
+    
+    private void accionReactivar() {
+        int filaSeleccionada = tabla.getSelectedRow();
+        if (filaSeleccionada < 0) {
+            JOptionPane.showMessageDialog(this, "Debe seleccionar un registro para reactivar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        configurarEstadoOperacion("REACTIVAR");
+        cmbEstado.setSelectedItem("A");
     }
     
     private void accionCancelar() {
         limpiarCampos();
-    }
-    
-    private void accionInactivar() {
-        JOptionPane.showMessageDialog(this, "Función Inactivar - Por implementar");
-    }
-    
-    private void accionReactivar() {
-        JOptionPane.showMessageDialog(this, "Función Reactivar - Por implementar");
+        configurarEstadoInicial();
     }
     
     private void accionActualizar() {
-        JOptionPane.showMessageDialog(this, "Función Actualizar - Por implementar");
+        if (CarFlaAct == 0) {
+            JOptionPane.showMessageDialog(this, "No hay operación pendiente para actualizar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        String codigo = txtCodigo.getText().trim();
+        String descripcion = txtDescripcion.getText().trim();
+        String estado = cmbEstado.getSelectedItem().toString();
+        
+        if (codigo.isEmpty() || descripcion.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Código y descripción son campos obligatorios.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        try {
+            switch (operacionActual) {
+                case "ADICIONAR":
+                    ejecutarAdicionar(codigo, descripcion, estado);
+                    break;
+                case "MODIFICAR":
+                    ejecutarModificar(codigo, descripcion, estado);
+                    break;
+                case "ELIMINAR":
+                case "INACTIVAR":
+                case "REACTIVAR":
+                    ejecutarCambioEstado(codigo, descripcion, estado);
+                    break;
+            }
+            
+            cargarDatosTabla();
+            limpiarCampos();
+            configurarEstadoInicial();
+            
+            JOptionPane.showMessageDialog(this, "Operación realizada exitosamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error en la base de datos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private void ejecutarAdicionar(String codigo, String descripcion, String estado) throws SQLException {
+        String consulta = "INSERT INTO " + nombreTabla + " (" + campoId + ", " + campoDescripcion + ", " + campoEstado + ") VALUES (?, ?, ?)";
+        db.ejecutarActualizacionPreparada(consulta, codigo, descripcion, estado);
+    }
+    
+    private void ejecutarModificar(String codigo, String descripcion, String estado) throws SQLException {
+        String consulta = "UPDATE " + nombreTabla + " SET " + campoDescripcion + " = ? WHERE " + campoId + " = ?";
+        db.ejecutarActualizacionPreparada(consulta, descripcion, codigo);
+    }
+    
+    private void ejecutarCambioEstado(String codigo, String descripcion, String estado) throws SQLException {
+        String consulta = "UPDATE " + nombreTabla + " SET " + campoEstado + " = ? WHERE " + campoId + " = ?";
+        db.ejecutarActualizacionPreparada(consulta, estado, codigo);
+    }
+    
+    private void cargarDatosTabla() {
+        try {
+            // Limpiar tabla
+            modeloTabla.setRowCount(0);
+            
+            String consulta = "SELECT " + campoId + ", " + campoDescripcion + ", " + campoEstado + 
+                             " FROM " + nombreTabla + " ORDER BY " + campoId;
+            ResultSet rs = db.ejecutarConsulta(consulta);
+            
+            while (rs.next()) {
+                Object[] fila = {
+                    rs.getString(campoId),
+                    rs.getString(campoDescripcion),
+                    rs.getString(campoEstado)
+                };
+                modeloTabla.addRow(fila);
+            }
+            rs.close();
+            
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error al cargar datos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
     
     private void accionSalir() {
+        if (CarFlaAct == 1) {
+            int opcion = JOptionPane.showConfirmDialog(
+                this, 
+                "Hay una operación pendiente. ¿Desea cancelarla y salir?", 
+                "Confirmar Salida", 
+                JOptionPane.YES_NO_OPTION
+            );
+            if (opcion == JOptionPane.NO_OPTION) {
+                return;
+            }
+        }
+        
         int opcion = JOptionPane.showConfirmDialog(
             this, 
             "¿Está seguro que desea salir?", 
@@ -192,15 +358,9 @@ public class DatabaseManagerGUI extends JFrame {
             JOptionPane.YES_NO_OPTION
         );
         if (opcion == JOptionPane.YES_OPTION) {
+            db.cerrarConexion();
             System.exit(0);
         }
-    }
-    
-    // Método para cargar datos de ejemplo en la tabla
-    public void cargarDatosEjemplo() {
-        modeloTabla.addRow(new Object[]{"001", "Ejemplo 1", "Activo"});
-        modeloTabla.addRow(new Object[]{"002", "Ejemplo 2", "Activo"});
-        modeloTabla.addRow(new Object[]{"003", "Ejemplo 3", "Inactivo"});
     }
     
     // Método main para probar la interfaz
@@ -212,8 +372,19 @@ public class DatabaseManagerGUI extends JFrame {
                 e.printStackTrace();
             }
             
-            DatabaseManagerGUI gui = new DatabaseManagerGUI("TIPO_FORMACION");
-            gui.cargarDatosEjemplo();
+            // Verificar conexión
+            if (!ConexionDB.probarConexion()) {
+                JOptionPane.showMessageDialog(null, "No se pudo conectar a la base de datos.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // Crear ventana para tabla TIPO_FORMACION
+            DatabaseManagerGUI gui = new DatabaseManagerGUI(
+                "TIPO_FORMACION", 
+                "PKCodTipoFor", 
+                "DescripcionTipoFormacion",
+                "EstadoRegistro"
+            );
             gui.setVisible(true);
         });
     }

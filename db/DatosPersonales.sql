@@ -76,7 +76,8 @@ CREATE TABLE EXPERIENCIA (
 -- Tabla catálogo de tipos de formación
 CREATE TABLE TIPO_FORMACION (
     PKCodTipoFor INT PRIMARY KEY AUTO_INCREMENT,
-    DescripcionTipoFormacion VARCHAR(50) NOT NULL
+    DescripcionTipoFormacion VARCHAR(50) NOT NULL,
+    EstadoRegistro CHAR(1) DEFAULT 'A'
 );
 
 -- Tabla de formación académica
@@ -95,7 +96,8 @@ CREATE TABLE FORMACION_ACADEMICA (
 -- Tabla catálogo de tipos de habilidad
 CREATE TABLE TIPO_HABILIDAD (
     PKCodTipoHab INT PRIMARY KEY AUTO_INCREMENT,
-    DescripcionTipoHabilidad VARCHAR(50) NOT NULL
+    DescripcionTipoHabilidad VARCHAR(50) NOT NULL,
+    EstadoRegistro CHAR(1) DEFAULT 'A'
 );
 
 -- Tabla de habilidades
@@ -156,22 +158,22 @@ INSERT INTO CATALOGO_IDIOMAS (CodIdioma, NombreIdioma) VALUES
 ('DE', 'Alemán'),
 ('IT', 'Italiano');
 
-INSERT INTO TIPO_FORMACION (DescripcionTipoFormacion) VALUES 
-('Educación Básica'),
-('Educación Media'),
-('Técnico'),
-('Tecnólogo'),
-('Universitario'),
-('Especialización'),
-('Maestría'),
-('Doctorado');
+INSERT INTO TIPO_FORMACION (DescripcionTipoFormacion, EstadoRegistro) VALUES 
+('Educación Básica', 'A'),
+('Educación Media', 'A'),
+('Técnico', 'A'),
+('Tecnólogo', 'A'),
+('Universitario', 'A'),
+('Especialización', 'A'),
+('Maestría', 'A'),
+('Doctorado', 'A');
 
-INSERT INTO TIPO_HABILIDAD (DescripcionTipoHabilidad) VALUES 
-('Técnica'),
-('Interpersonal'),
-('Liderazgo'),
-('Comunicación'),
-('Analítica'),
-('Creativa');
+INSERT INTO TIPO_HABILIDAD (DescripcionTipoHabilidad, EstadoRegistro) VALUES 
+('Técnica', 'A'),
+('Interpersonal', 'A'),
+('Liderazgo', 'A'),
+('Comunicación', 'A'),
+('Analítica', 'A'),
+('Creativa', 'A');
 
 SELECT 'Base de datos creada exitosamente' as Mensaje;
