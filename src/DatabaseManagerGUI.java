@@ -45,8 +45,8 @@ public class DatabaseManagerGUI extends JFrame {
         initComponents();
         setupLayout();
         setupEventListeners();
-        cargarDatosTabla();
         configurarEstadoInicial();
+        cargarDatosTabla(); // Mover después de configurar estado inicial
     }
     
     private void initComponents() {
@@ -178,6 +178,9 @@ public class DatabaseManagerGUI extends JFrame {
         btnActualizar.setEnabled(false);
         CarFlaAct = 0;
         operacionActual = "";
+        
+        // Limpiar campos al iniciar
+        limpiarCampos();
     }
     
     private void configurarEstadoOperacion(String operacion) {
@@ -208,9 +211,23 @@ public class DatabaseManagerGUI extends JFrame {
     }
     
     private void accionAdicionar() {
+        // Blanquear las cajas de texto del área de Registro
         limpiarCampos();
+        
+        // Configurar para operación ADICIONAR
         configurarEstadoOperacion("ADICIONAR");
+        
+        // El estado se muestra por defecto como "A" (Activo) y no se puede modificar
+        cmbEstado.setSelectedItem("A");
+        cmbEstado.setEnabled(false);
+        
+        // Establecer el flag de actualización en 1
+        CarFlaAct = 1;
+        
+        // Dar foco al campo código para que el usuario pueda empezar a escribir
         txtCodigo.requestFocus();
+        
+        System.out.println("Modo ADICIONAR activado. CarFlaAct = " + CarFlaAct);
     }
     
     private void accionModificar() {
@@ -254,8 +271,16 @@ public class DatabaseManagerGUI extends JFrame {
     }
     
     private void accionCancelar() {
+        // Limpiar campos del área de Registro
         limpiarCampos();
+        
+        // Desactivar la función que se estuvo trabajando
         configurarEstadoInicial();
+        
+        // Colocar el flag de actualización en valor 0
+        CarFlaAct = 0;
+        
+        System.out.println("Operación cancelada. CarFlaAct = " + CarFlaAct);
     }
     
     private void accionActualizar() {
@@ -268,14 +293,29 @@ public class DatabaseManagerGUI extends JFrame {
         String descripcion = txtDescripcion.getText().trim();
         String estado = cmbEstado.getSelectedItem().toString();
         
-        if (codigo.isEmpty() || descripcion.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Código y descripción son campos obligatorios.", "Error", JOptionPane.ERROR_MESSAGE);
+        // Validar campos obligatorios
+        if (codigo.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "El código es obligatorio.", "Error", JOptionPane.ERROR_MESSAGE);
+            txtCodigo.requestFocus();
+            return;
+        }
+        
+        if (descripcion.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "La descripción es obligatoria.", "Error", JOptionPane.ERROR_MESSAGE);
+            txtDescripcion.requestFocus();
             return;
         }
         
         try {
             switch (operacionActual) {
                 case "ADICIONAR":
+                    // Verificar si el código ya existe
+                    if (existeCodigo(codigo)) {
+                        JOptionPane.showMessageDialog(this, "El código '" + codigo + "' ya existe. Ingrese un código diferente.", "Error", JOptionPane.ERROR_MESSAGE);
+                        txtCodigo.selectAll();
+                        txtCodigo.requestFocus();
+                        return;
+                    }
                     ejecutarAdicionar(codigo, descripcion, estado);
                     break;
                 case "MODIFICAR":
@@ -288,11 +328,16 @@ public class DatabaseManagerGUI extends JFrame {
                     break;
             }
             
+            // Recargar los datos en la tabla (grilla)
             cargarDatosTabla();
+            
+            // Limpiar campos del área de Registro
             limpiarCampos();
+            
+            // Desactivar el modo de actualización
             configurarEstadoInicial();
             
-            JOptionPane.showMessageDialog(this, "Operación realizada exitosamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Operación '" + operacionActual + "' realizada exitosamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
             
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error en la base de datos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -314,6 +359,19 @@ public class DatabaseManagerGUI extends JFrame {
         db.ejecutarActualizacionPreparada(consulta, estado, codigo);
     }
     
+    private boolean existeCodigo(String codigo) throws SQLException {
+        String consulta = "SELECT COUNT(*) FROM " + nombreTabla + " WHERE " + campoId + " = ?";
+        ResultSet rs = db.ejecutarConsultaPreparada(consulta, codigo);
+        
+        if (rs.next()) {
+            int count = rs.getInt(1);
+            rs.close();
+            return count > 0;
+        }
+        rs.close();
+        return false;
+    }
+    
     private void cargarDatosTabla() {
         try {
             // Limpiar tabla
@@ -323,7 +381,9 @@ public class DatabaseManagerGUI extends JFrame {
                              " FROM " + nombreTabla + " ORDER BY " + campoId;
             ResultSet rs = db.ejecutarConsulta(consulta);
             
+            boolean hayDatos = false;
             while (rs.next()) {
+                hayDatos = true;
                 Object[] fila = {
                     rs.getString(campoId),
                     rs.getString(campoDescripcion),
@@ -333,8 +393,15 @@ public class DatabaseManagerGUI extends JFrame {
             }
             rs.close();
             
+            if (!hayDatos) {
+                System.out.println("No se encontraron registros en la tabla " + nombreTabla);
+            } else {
+                System.out.println("Cargados " + modeloTabla.getRowCount() + " registros de la tabla " + nombreTabla);
+            }
+            
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error al cargar datos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error al cargar datos de la tabla " + nombreTabla + ": " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
         }
     }
     
