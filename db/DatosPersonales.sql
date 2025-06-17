@@ -1,3 +1,16 @@
+-- Para eliminar si ya esta creada la base de datos
+-- Eliminar la base de datos completa
+DROP DATABASE IF EXISTS datospersonales;
+
+-- Eliminar el usuario si existe
+DROP USER IF EXISTS 'appuser'@'localhost';
+
+-- Confirmar cambios
+FLUSH PRIVILEGES;
+
+SELECT 'Base de datos y usuario eliminados exitosamente' as Mensaje;
+
+
 -- Sistema de Gestión de Currículums
 -- Script de creación de base de datos
 
@@ -6,7 +19,7 @@ CREATE DATABASE IF NOT EXISTS datospersonales;
 USE datospersonales;
 
 -- Crear usuario para la aplicación
-CREATE USER IF NOT EXISTS 'appuser'@'localhost' IDENTIFIED BY 'apppassword123';
+CREATE USER IF NOT EXISTS 'appuser'@'localhost' IDENTIFIED BY 'labDbAbet';
 GRANT ALL PRIVILEGES ON datospersonales.* TO 'appuser'@'localhost';
 FLUSH PRIVILEGES;
 
@@ -31,8 +44,8 @@ CREATE TABLE IDIOMA (
     FKPerCod INT NOT NULL,
     CodIdioma VARCHAR(5) NOT NULL,
     NivelIdioma VARCHAR(20),
-    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON DELETE CASCADE,
-    FOREIGN KEY (CodIdioma) REFERENCES CATALOGO_IDIOMAS(CodIdioma)
+    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (CodIdioma) REFERENCES CATALOGO_IDIOMAS(CodIdioma) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 -- Tabla catálogo de empresas
@@ -55,9 +68,9 @@ CREATE TABLE EXPERIENCIA (
     FKExpCar INT NOT NULL,
     ExpCarIni DATE,
     ExpCarFin DATE,
-    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON DELETE CASCADE,
-    FOREIGN KEY (FKExpEmp) REFERENCES EXP_EMPRESA(PKExpEmp),
-    FOREIGN KEY (FKExpCar) REFERENCES CARGO(PKExpCar)
+    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (FKExpEmp) REFERENCES EXP_EMPRESA(PKExpEmp) ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (FKExpCar) REFERENCES CARGO(PKExpCar) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 -- Tabla catálogo de tipos de formación
@@ -75,8 +88,8 @@ CREATE TABLE FORMACION_ACADEMICA (
     FechaInicio DATE,
     FechaFin DATE,
     Institucion VARCHAR(100),
-    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON DELETE CASCADE,
-    FOREIGN KEY (FKCodTipoFor) REFERENCES TIPO_FORMACION(PKCodTipoFor)
+    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (FKCodTipoFor) REFERENCES TIPO_FORMACION(PKCodTipoFor) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 -- Tabla catálogo de tipos de habilidad
@@ -92,8 +105,8 @@ CREATE TABLE HABILIDAD (
     FKCodTipoHab INT NOT NULL,
     HabPer VARCHAR(100) NOT NULL,
     NivelHabilidad VARCHAR(20),
-    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON DELETE CASCADE,
-    FOREIGN KEY (FKCodTipoHab) REFERENCES TIPO_HABILIDAD(PKCodTipoHab)
+    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (FKCodTipoHab) REFERENCES TIPO_HABILIDAD(PKCodTipoHab) ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
 -- Tabla de cursos y certificados
@@ -103,7 +116,7 @@ CREATE TABLE CURSO_CERTIFICADO (
     CurCer VARCHAR(200) NOT NULL,
     Institucion VARCHAR(100),
     FechaCertificacion DATE,
-    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON DELETE CASCADE
+    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 -- Tabla de certificaciones
@@ -112,9 +125,18 @@ CREATE TABLE CERTIFICACION (
     FKPerCod INT NOT NULL,
     NombreCert VARCHAR(200) NOT NULL,
     InstitucionCert VARCHAR(100),
+    FechaCertificacion DATE,
+    FechaVencimiento DATE,
+    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+-- Tabla de información adicional
+CREATE TABLE INFORMACION_ADICIONAL (
+    PKInfoCod INT PRIMARY KEY AUTO_INCREMENT,
+    FKPerCod INT NOT NULL,
     TipoInfo VARCHAR(50) NOT NULL,
     DetalleInfo TEXT,
-    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON DELETE CASCADE
+    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 -- Tabla de otros datos
@@ -122,5 +144,34 @@ CREATE TABLE OTRO_DATO (
     PKOtrCod INT PRIMARY KEY AUTO_INCREMENT,
     FKPerCod INT NOT NULL,
     OtrDat TEXT,
-    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON DELETE CASCADE
+    FOREIGN KEY (FKPerCod) REFERENCES PERSONA(PKPerCod) ON UPDATE CASCADE ON DELETE CASCADE
 );
+
+-- Insertar datos iniciales en catálogos
+INSERT INTO CATALOGO_IDIOMAS (CodIdioma, NombreIdioma) VALUES 
+('ES', 'Español'),
+('EN', 'Inglés'),
+('FR', 'Francés'),
+('PT', 'Portugués'),
+('DE', 'Alemán'),
+('IT', 'Italiano');
+
+INSERT INTO TIPO_FORMACION (DescripcionTipoFormacion) VALUES 
+('Educación Básica'),
+('Educación Media'),
+('Técnico'),
+('Tecnólogo'),
+('Universitario'),
+('Especialización'),
+('Maestría'),
+('Doctorado');
+
+INSERT INTO TIPO_HABILIDAD (DescripcionTipoHabilidad) VALUES 
+('Técnica'),
+('Interpersonal'),
+('Liderazgo'),
+('Comunicación'),
+('Analítica'),
+('Creativa');
+
+SELECT 'Base de datos creada exitosamente' as Mensaje;
