@@ -377,6 +377,12 @@ public class DatabaseManagerGUI extends JFrame {
             // Limpiar tabla
             modeloTabla.setRowCount(0);
             
+            // Verificar si la columna EstadoRegistro existe
+            if (!verificarColumnaExiste(campoEstado)) {
+                // Si no existe la columna, agregarla
+                agregarColumnaEstadoRegistro();
+            }
+            
             String consulta = "SELECT " + campoId + ", " + campoDescripcion + ", " + campoEstado + 
                              " FROM " + nombreTabla + " ORDER BY " + campoId;
             ResultSet rs = db.ejecutarConsulta(consulta);
@@ -387,7 +393,7 @@ public class DatabaseManagerGUI extends JFrame {
                 Object[] fila = {
                     rs.getString(campoId),
                     rs.getString(campoDescripcion),
-                    rs.getString(campoEstado)
+                    rs.getString(campoEstado) != null ? rs.getString(campoEstado) : "A"
                 };
                 modeloTabla.addRow(fila);
             }
@@ -402,6 +408,36 @@ public class DatabaseManagerGUI extends JFrame {
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error al cargar datos de la tabla " + nombreTabla + ": " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
+        }
+    }
+    
+    private boolean verificarColumnaExiste(String nombreColumna) {
+        try {
+            String consulta = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS " +
+                             "WHERE TABLE_SCHEMA = 'datospersonales' AND TABLE_NAME = ? AND COLUMN_NAME = ?";
+            ResultSet rs = db.ejecutarConsultaPreparada(consulta, nombreTabla, nombreColumna);
+            boolean existe = rs.next();
+            rs.close();
+            return existe;
+        } catch (SQLException e) {
+            System.err.println("Error verificando columna: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    private void agregarColumnaEstadoRegistro() {
+        try {
+            String alterTable = "ALTER TABLE " + nombreTabla + " ADD COLUMN " + campoEstado + " CHAR(1) DEFAULT 'A'";
+            db.ejecutarActualizacion(alterTable);
+            
+            // Actualizar registros existentes
+            String updateExistentes = "UPDATE " + nombreTabla + " SET " + campoEstado + " = 'A' WHERE " + campoEstado + " IS NULL";
+            db.ejecutarActualizacion(updateExistentes);
+            
+            System.out.println("Columna " + campoEstado + " agregada exitosamente a la tabla " + nombreTabla);
+            
+        } catch (SQLException e) {
+            System.err.println("Error agregando columna EstadoRegistro: " + e.getMessage());
         }
     }
     

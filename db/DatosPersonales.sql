@@ -177,3 +177,32 @@ INSERT INTO TIPO_HABILIDAD (DescripcionTipoHabilidad, EstadoRegistro) VALUES
 ('Creativa', 'A');
 
 SELECT 'Base de datos creada exitosamente' as Mensaje;
+
+-- SCRIPT DE MIGRACIÓN: Agregar columna EstadoRegistro si no existe
+-- Esto es para bases de datos existentes que no tienen la columna
+
+DELIMITER $$
+
+CREATE PROCEDURE AgregarEstadoRegistroSiNoExiste()
+BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+    
+    -- Intentar agregar la columna a TIPO_FORMACION
+    ALTER TABLE TIPO_FORMACION ADD COLUMN EstadoRegistro CHAR(1) DEFAULT 'A';
+    
+    -- Intentar agregar la columna a TIPO_HABILIDAD  
+    ALTER TABLE TIPO_HABILIDAD ADD COLUMN EstadoRegistro CHAR(1) DEFAULT 'A';
+    
+    -- Actualizar registros existentes que podrían tener NULL
+    UPDATE TIPO_FORMACION SET EstadoRegistro = 'A' WHERE EstadoRegistro IS NULL;
+    UPDATE TIPO_HABILIDAD SET EstadoRegistro = 'A' WHERE EstadoRegistro IS NULL;
+    
+END$$
+
+DELIMITER ;
+
+-- Ejecutar el procedimiento de migración
+CALL AgregarEstadoRegistroSiNoExiste();
+
+-- Eliminar el procedimiento temporal
+DROP PROCEDURE AgregarEstadoRegistroSiNoExiste;
