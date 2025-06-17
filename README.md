@@ -12,7 +12,13 @@ DatabaseManager-Java/
 │   └── mysql-connector-j-9.3.0.jar  # Driver MySQL
 ├── src/
 │   ├── ConexionDB.java          # Clase principal de conexión a BD
+│   ├── DatabaseManagerGUI.java  # Interfaz gráfica
 │   └── TestConexion.java        # Clase de prueba
+├── run.bat                      # Script de ejecución (Windows)
+├── run.sh                       # Script de ejecución (Linux/Mac)
+├── build.bat                    # Script de construcción JAR (Windows)
+├── build.sh                     # Script de construcción JAR (Linux/Mac)
+├── MANIFEST.MF                  # Manifiesto para JAR ejecutable
 └── .gitignore                   # Archivos a ignorar en Git
 ```
 
@@ -29,125 +35,100 @@ mysql -u root -p < db/DatosPersonales.sql
 El script crea automáticamente:
 - **Base de datos:** `datospersonales`
 - **Usuario:** `appuser`
-- **Contraseña:** `apppassword123`
+- **Contraseña:** `labDbAbet`
 
-### 3. Cambiar credenciales (opcional)
-Si deseas cambiar las credenciales, modifica estas constantes en `ConexionDB.java`:
-```java
-private static final String USUARIO = "tu_usuario";
-private static final String PASSWORD = "tu_contraseña";
+## Ejecución Rápida
+
+### Windows
+```cmd
+run.bat
 ```
 
-## Compilación y Ejecución
-
-### 1. Compilar el proyecto
+### Linux/Mac
 ```bash
-# Compilar con el driver MySQL en el classpath
-javac -cp "lib/mysql-connector-j-9.3.0.jar" src/*.java
+chmod +x run.sh
+./run.sh
 ```
 
-### 2. Ejecutar la prueba de conexión
+## Compilación y Ejecución Manual
+
+### Windows
+```cmd
+# Compilar
+javac -cp "lib\mysql-connector-j-9.3.0.jar" -d . src\*.java
+
+# Ejecutar (IMPORTANTE: usar ; en Windows)
+java -cp "lib\mysql-connector-j-9.3.0.jar;." db.DatabaseManagerGUI
+
+# Ejecutar prueba de conexión
+java -cp "lib\mysql-connector-j-9.3.0.jar;." db.TestConexion
+```
+
+### Linux/Mac
 ```bash
-# Ejecutar desde el directorio raíz del proyecto
-java -cp "lib/mysql-connector-j-9.3.0.jar:src" TestConexion
+# Compilar
+javac -cp "lib/mysql-connector-j-9.3.0.jar" -d . src/*.java
+
+# Ejecutar (IMPORTANTE: usar : en Linux/Mac)
+java -cp "lib/mysql-connector-j-9.3.0.jar:." db.DatabaseManagerGUI
+
+# Ejecutar prueba de conexión
+java -cp "lib/mysql-connector-j-9.3.0.jar:." db.TestConexion
 ```
 
-## Uso de la Clase ConexionDB
+## Construcción del JAR Ejecutable
 
-### Obtener una conexión
-```java
-ConexionDB db = ConexionDB.getInstance();
-Connection conn = db.getConexion();
+### Windows
+```cmd
+build.bat
+java -jar DatabaseManager.jar
 ```
 
-### Ejecutar consultas SELECT
-```java
-// Consulta simple
-ResultSet rs = db.ejecutarConsulta("SELECT * FROM PERSONA");
-
-// Consulta con parámetros
-ResultSet rs = db.ejecutarConsultaPreparada(
-    "SELECT * FROM PERSONA WHERE PKPerCod = ?", 
-    idPersona
-);
+### Linux/Mac
+```bash
+chmod +x build.sh
+./build.sh
+java -jar DatabaseManager.jar
 ```
 
-### Ejecutar INSERT, UPDATE, DELETE
-```java
-// Inserción simple
-int filas = db.ejecutarActualizacion(
-    "INSERT INTO PERSONA (PerNom, PerEma) VALUES ('Juan', 'juan@email.com')"
-);
+## Resolución de Problemas Comunes
 
-// Inserción con parámetros y retorno de ID
-int nuevoId = db.ejecutarInsertConId(
-    "INSERT INTO PERSONA (PerNom, PerEma) VALUES (?, ?)",
-    "Juan Pérez", "juan@email.com"
-);
+### Error "Could not find or load main class"
+**Causa:** Separador de classpath incorrecto o clases no compiladas.
 
-// Actualización con parámetros
-int filas = db.ejecutarActualizacionPreparada(
-    "UPDATE PERSONA SET PerNom = ? WHERE PKPerCod = ?",
-    "Juan Carlos Pérez", idPersona
-);
+**Solución:**
+- **Windows:** Usar `;` como separador: `java -cp "lib\mysql-connector-j-9.3.0.jar;." db.DatabaseManagerGUI`
+- **Linux/Mac:** Usar `:` como separador: `java -cp "lib/mysql-connector-j-9.3.0.jar:." db.DatabaseManagerGUI`
+
+### Error de interfaz gráfica en servidor
+Si obtienes errores como `UnsatisfiedLinkError` relacionados con librerías gráficas:
+
+1. **Ejecutar prueba de conexión sin GUI:**
+```bash
+java -cp "lib/mysql-connector-j-9.3.0.jar:." db.TestConexion
 ```
 
-### Manejo de transacciones
-```java
-try {
-    db.iniciarTransaccion();
-    
-    // Ejecutar múltiples operaciones
-    db.ejecutarActualizacionPreparada("INSERT INTO ...", params1);
-    db.ejecutarActualizacionPreparada("UPDATE ...", params2);
-    
-    db.confirmarTransaccion();
-} catch (SQLException e) {
-    db.revertirTransaccion();
-    throw e;
-}
+2. **Instalar entorno gráfico mínimo (Linux):**
+```bash
+sudo apt-get update
+sudo apt-get install xvfb
+xvfb-run -a java -cp "lib/mysql-connector-j-9.3.0.jar:." db.DatabaseManagerGUI
 ```
 
-## Características de la Clase ConexionDB
+3. **Usar forwarding X11 con SSH:**
+```bash
+ssh -X usuario@servidor
+java -cp "lib/mysql-connector-j-9.3.0.jar:." db.DatabaseManagerGUI
+```
 
-- **Patrón Singleton:** Una sola instancia de conexión por aplicación
-- **Conexión automática:** Reconexión automática si se pierde la conexión
-- **Métodos preparados:** Prevención de inyección SQL
-- **Manejo de transacciones:** Soporte completo para transacciones
-- **Logging:** Registro de eventos y errores
-- **Thread-safe:** Seguro para uso en aplicaciones multihilo
-
-## Esquema de Base de Datos
-
-El sistema incluye las siguientes tablas principales:
-- `PERSONA` - Datos básicos de las personas
-- `EXPERIENCIA` - Experiencia laboral
-- `FORMACION_ACADEMICA` - Formación académica
-- `HABILIDAD` - Habilidades técnicas y personales
-- `IDIOMA` - Idiomas y niveles
-- `CERTIFICACION` - Certificaciones profesionales
-- `CURSO_CERTIFICADO` - Cursos realizados
-
-## Requisitos
-
-- Java 8 o superior
-- MySQL 5.7 o superior
-- Driver MySQL Connector/J (incluido en `lib/`)
-
-## Troubleshooting
-
-### Error de conexión
+### Error de conexión a base de datos
 1. Verificar que MySQL esté ejecutándose
 2. Confirmar que la base de datos `datospersonales` existe
 3. Verificar credenciales del usuario `appuser`
 
-### Error de driver
-1. Verificar que `mysql-connector-j-9.3.0.jar` esté en el classpath
-2. Usar la versión correcta del driver para tu versión de Java
-
-### Problemas de permisos
+### Verificar configuración
 ```sql
--- Otorgar permisos manualmente si es necesario
-GRANT ALL PRIVILEGES ON datospersonales.* TO 'appuser'@'localhost';
-FLUSH PRIVILEGES;
+-- Conectar como root y verificar
+SHOW DATABASES LIKE 'datospersonales';
+SELECT User, Host FROM mysql.user WHERE User = 'appuser';
 ```
